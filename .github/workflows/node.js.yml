@@ -1,0 +1,143 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-format:
+    name: 🧹 Lint e Formatação
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 📚 Instalar dependências
+        run: npm ci
+        
+      - name: 🔍 Verificar formatação com Prettier
+        run: npm run format:check
+        
+      - name: 🧹 Executar ESLint
+        run: npm run lint
+
+  test:
+    name: 🧪 Testes e Coverage
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          
+      - name: 📚 Instalar dependências
+        run: npm ci
+        
+      - name: 🧪 Executar testes
+        run: npm test
+        
+      - name: 📊 Upload coverage para Codecov
+        if: matrix.node-version == 20
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test]
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 📚 Instalar dependências
+        run: npm ci
+        
+      - name: 🏗️ Build da aplicação
+        run: npm run build
+
+  type-check:
+    name: 🔍 Verificação de Tipos
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 📚 Instalar dependências
+        run: npm ci
+        
+      - name: 🔍 Verificar tipos TypeScript
+        run: npx tsc --noEmit
+
+  security:
+    name: 🔒 Auditoria de Segurança
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 📚 Instalar dependências
+        run: npm ci
+        
+      - name: 🔒 Auditoria de segurança
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  success:
+    name: ✅ CI Completa
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test, build, type-check, security]
+    if: always()
+    
+    steps:
+      - name: ✅ Verificar status dos jobs
+        run: |
+          if [[ "${{ needs.lint-and-format.result }}" == "success" && 
+                "${{ needs.test.result }}" == "success" && 
+                "${{ needs.build.result }}" == "success" && 
+                "${{ needs.type-check.result }}" == "success" ]]; then
+            echo "🎉 Todos os checks passaram com sucesso!"
+          else
+            echo "❌ Alguns checks falharam"
+            exit 1
+          fi
