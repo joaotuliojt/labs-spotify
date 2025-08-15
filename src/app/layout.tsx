@@ -24,7 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${rubik.variable} ${dmSans.variable} antialiased`}>
+      <body
+        className={`${rubik.variable} ${dmSans.variable} antialiased`}
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>
